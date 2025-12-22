@@ -1,13 +1,112 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Popular-Word-Maker</title>
-  </head>
+    <title>流行語大賞メーカー</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@700;900&display=swap');
+      
+      body {
+        font-family: 'Zen Kaku Gothic New', sans-serif;
+        background-color: #1a0505;
+        overflow-x: hidden;
+      }
+
+      /* Custom Scrollbar for Textarea */
+      textarea::-webkit-scrollbar {
+        width: 8px;
+      }
+      textarea::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+      }
+      textarea::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+      }
+      textarea::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+
+      /* Gold Text with Red Border Effect */
+      .gold-title {
+        background: linear-gradient(to bottom, #fff7cc 0%, #ffd700 50%, #b8860b 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-stroke: 2px #d00000;
+        text-shadow: 0px 2px 4px rgba(0,0,0,0.3);
+        position: relative;
+        z-index: 10;
+      }
+      
+      .sparkle {
+        animation: sparkle-anim 1.5s infinite alternate;
+      }
+
+      @keyframes sparkle-anim {
+        0% { opacity: 0.5; transform: scale(0.8); }
+        100% { opacity: 1; transform: scale(1.2); }
+      }
+
+      /* Fire Background Animation */
+      .fire-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: radial-gradient(circle at 50% 100%, #500000, #1a0000);
+        overflow: hidden;
+      }
+
+      .particle {
+        position: absolute;
+        bottom: -50px;
+        background-color: rgba(255, 69, 0, 0.6);
+        border-radius: 50%;
+        animation: rise 5s infinite ease-in;
+        filter: blur(4px);
+      }
+
+      @keyframes rise {
+        0% {
+          bottom: -50px;
+          transform: translateX(0);
+          opacity: 0;
+        }
+        50% {
+          opacity: 1;
+        }
+        100% {
+          bottom: 110%;
+          transform: translateX(calc(100px - random(200px)));
+          opacity: 0;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "jspdf": "https://esm.sh/jspdf@^3.0.4",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@dnd-kit/core": "https://esm.sh/@dnd-kit/core@^6.3.1",
+    "@dnd-kit/sortable": "https://esm.sh/@dnd-kit/sortable@^10.0.0",
+    "@dnd-kit/utilities": "https://esm.sh/@dnd-kit/utilities@^3.2.2"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>
