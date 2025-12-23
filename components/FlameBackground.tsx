@@ -1,39 +1,47 @@
 import React, { useEffect, useState } from 'react';
 
+interface Particle {
+  id: number;
+  size: number;
+  left: number;
+  duration: number;
+  delay: number;
+}
+
 // Generates random particles for the fire effect
-const FlameBackground: React.FC = () => {
-  const [particles, setParticles] = useState<number[]>([]);
+const FlameBackground: React.FC = React.memo(() => {
+  const [particles, setParticles] = useState<Particle[]>([]);
 
   useEffect(() => {
     // Generate a fixed number of particles
     const particleCount = 30;
-    setParticles(Array.from({ length: particleCount }, (_, i) => i));
+    const newParticles = Array.from({ length: particleCount }, (_, i) => ({
+      id: i,
+      size: Math.random() * 20 + 10,
+      left: Math.random() * 100,
+      duration: Math.random() * 5 + 3,
+      delay: Math.random() * 5,
+    }));
+    setParticles(newParticles);
   }, []);
 
   return (
     <div className="fire-bg">
-      {particles.map((i) => {
-        const size = Math.random() * 20 + 10;
-        const left = Math.random() * 100;
-        const duration = Math.random() * 5 + 3;
-        const delay = Math.random() * 5;
-        
-        return (
-          <div
-            key={i}
-            className="particle"
-            style={{
-              width: `${size}px`,
-              height: `${size}px`,
-              left: `${left}%`,
-              animationDuration: `${duration}s`,
-              animationDelay: `${delay}s`,
-            }}
-          />
-        );
-      })}
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="particle"
+          style={{
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            left: `${p.left}%`,
+            animationDuration: `${p.duration}s`,
+            animationDelay: `${p.delay}s`,
+          }}
+        />
+      ))}
     </div>
   );
-};
+});
 
 export default FlameBackground;

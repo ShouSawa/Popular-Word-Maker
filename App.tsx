@@ -25,6 +25,10 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { SortableItem } from './components/SortableItem';
 import FlameBackground from './components/FlameBackground';
+import CurtainBackground from './components/CurtainBackground';
+import HowToUse from './components/HowToUse';
+import { LEDStrip } from './components/LEDStrip';
+import githubMark from './img/github-mark-white.png';
 
 // Types
 interface WordItem {
@@ -33,7 +37,7 @@ interface WordItem {
 }
 
 // Initial Data
-const DEFAULT_TITLE = '流行語大賞';
+const DEFAULT_TITLE = 'ランキングメーカー';
 
 // Helper to generate unique IDs
 const generateId = () => `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -50,8 +54,8 @@ const Droppable = ({ id, children, className, style }: { id: string, children: R
 };
 
 export default function App() {
-  const [title, setTitle] = useState(DEFAULT_TITLE);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [boardTitle, setBoardTitle] = useState('RANKING BOARD');
+  const [isEditingBoardTitle, setIsEditingBoardTitle] = useState(false);
   const [inputText, setInputText] = useState('');
   
   // Two lists: Ranking (Board) and Stack (Bench)
@@ -62,14 +66,14 @@ export default function App() {
   
   // Refs for export
   const rankingBoardRef = useRef<HTMLDivElement>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
+  const boardTitleInputRef = useRef<HTMLInputElement>(null);
 
-  // Focus title input when editing starts
+  // Focus board title input when editing starts
   useEffect(() => {
-    if (isEditingTitle && titleInputRef.current) {
-      titleInputRef.current.focus();
+    if (isEditingBoardTitle && boardTitleInputRef.current) {
+      boardTitleInputRef.current.focus();
     }
-  }, [isEditingTitle]);
+  }, [isEditingBoardTitle]);
 
   // --- Logic: Sync Textarea with Blocks ---
   useEffect(() => {
@@ -81,7 +85,7 @@ export default function App() {
   const syncItemsWithText = (lines: string[]) => {
     setRankingItems(currentRanking => {
       setStackItems(currentStack => {
-         const newWordCounts = new Map<string, number>();
+        const newWordCounts = new Map<string, number>();
         lines.forEach(line => {
           newWordCounts.set(line, (newWordCounts.get(line) || 0) + 1);
         });
@@ -125,13 +129,13 @@ export default function App() {
       });
       
       // Re-calculate ranking
-       const newWordCounts = new Map<string, number>();
+      const newWordCounts = new Map<string, number>();
         lines.forEach(line => {
           newWordCounts.set(line, (newWordCounts.get(line) || 0) + 1);
         });
         const currentUsedCounts = new Map<string, number>();
         const nextRanking = currentRanking.filter(item => {
-           const maxAllowed = newWordCounts.get(item.text) || 0;
+          const maxAllowed = newWordCounts.get(item.text) || 0;
           const used = currentUsedCounts.get(item.text) || 0;
           if (used < maxAllowed) {
             currentUsedCounts.set(item.text, used + 1);
@@ -278,7 +282,33 @@ export default function App() {
       // Temporarily remove max-height restrictions if any for full capture
       const canvas = await html2canvas(rankingBoardRef.current, { 
         backgroundColor: '#FFF5E1',
-        scale: 2 // Improve quality
+        scale: 2, // Improve quality
+        onclone: (clonedDoc) => {
+            // Fix for background-clip: text rendering as a solid block in html2canvas
+            const elements = clonedDoc.querySelectorAll('[class*="bg-clip-text"]');
+            elements.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                htmlEl.style.background = 'none';
+                htmlEl.style.webkitTextFillColor = 'initial';
+                htmlEl.style.color = '#b45309'; // Fallback color (amber-700)
+            });
+
+            // Fix for vertical alignment in export (Ranking Numbers)
+            const rankingNumbers = clonedDoc.querySelectorAll('.ranking-number');
+            rankingNumbers.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                htmlEl.style.transform = 'translateY(-15px)'; // Shift up significantly for export
+                htmlEl.style.paddingBottom = '0'; 
+            });
+
+            // Fix for vertical alignment in export (Word Items)
+            const wordItems = clonedDoc.querySelectorAll('.sortable-item-text');
+            wordItems.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                htmlEl.style.transform = 'translateY(-5px)'; // Shift up slightly
+                htmlEl.style.overflow = 'visible';
+            });
+        }
       }); 
       const link = document.createElement('a');
       link.download = 'ranking.png';
@@ -296,7 +326,33 @@ export default function App() {
     try {
       const canvas = await html2canvas(rankingBoardRef.current, { 
         backgroundColor: '#FFF5E1',
-        scale: 2 
+        scale: 2,
+        onclone: (clonedDoc) => {
+            // Fix for background-clip: text rendering as a solid block in html2canvas
+            const elements = clonedDoc.querySelectorAll('[class*="bg-clip-text"]');
+            elements.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                htmlEl.style.background = 'none';
+                htmlEl.style.webkitTextFillColor = 'initial';
+                htmlEl.style.color = '#b45309'; // Fallback color (amber-700)
+            });
+
+            // Fix for vertical alignment in export (Ranking Numbers)
+            const rankingNumbers = clonedDoc.querySelectorAll('.ranking-number');
+            rankingNumbers.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                htmlEl.style.transform = 'translateY(-15px)'; // Shift up significantly for export
+                htmlEl.style.paddingBottom = '0';
+            });
+
+            // Fix for vertical alignment in export (Word Items)
+            const wordItems = clonedDoc.querySelectorAll('.sortable-item-text');
+            wordItems.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                htmlEl.style.transform = 'translateY(-5px)'; // Shift up slightly
+                htmlEl.style.overflow = 'visible';
+            });
+        }
       });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF();
@@ -314,7 +370,7 @@ export default function App() {
   };
 
   const handleExportText = () => {
-    const text = `${title}\n` + rankingItems.map((item, index) => `${index + 1}. ${item.text}`).join('\n');
+    const text = `${boardTitle}\n` + rankingItems.map((item, index) => `${index + 1}. ${item.text}`).join('\n');
     navigator.clipboard.writeText(text).then(() => {
       alert('ランキングをクリップボードに保存しました');
     });
@@ -340,39 +396,60 @@ export default function App() {
   const emptySlots = Array.from({ length: emptySlotsCount }, (_, i) => rankingItems.length + i + 1);
 
   return (
-    <div className="min-h-screen text-gray-800 pb-20 relative">
+    <div className="min-h-screen text-gray-800 pb-20 relative overflow-x-hidden">
+      <CurtainBackground />
       <FlameBackground />
+
+      {/* GitHub Link */}
+      <a 
+        href="https://github.com/ShouSawa/Popular-Word-Maker"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute top-4 right-4 z-50 bg-black rounded-full p-1 hover:scale-110 transition-all shadow-lg border border-white/30 flex items-center justify-center"
+        title="View on GitHub"
+      >
+        <img src={githubMark} alt="GitHub" className="w-8 h-8" />
+      </a>
 
       <div className="max-w-5xl mx-auto px-4 py-8 relative z-10">
         
         {/* Title Section */}
-        <div className="flex justify-center mb-8 relative group">
-          <div className="relative inline-block">
-            {isEditingTitle ? (
-              <input
-                ref={titleInputRef}
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={() => setIsEditingTitle(false)}
-                onKeyDown={(e) => e.key === 'Enter' && setIsEditingTitle(false)}
-                className="text-5xl md:text-7xl font-black text-center bg-transparent border-b-2 border-red-600 outline-none text-yellow-400 placeholder-yellow-600"
-              />
-            ) : (
-              <h1 className="text-5xl md:text-7xl font-black text-center gold-title tracking-wider">
-                {title}
-              </h1>
-            )}
-            <button
-              onClick={() => setIsEditingTitle(!isEditingTitle)}
-              className="absolute -bottom-2 -right-8 p-1 text-white opacity-50 hover:opacity-100 transition-opacity"
-            >
-              <Pen size={20} />
-            </button>
-            <div className="absolute top-0 right-0 w-full h-full pointer-events-none">
-                <div className="absolute top-2 right-2 text-yellow-200 sparkle text-2xl">✨</div>
-                <div className="absolute bottom-2 left-2 text-yellow-200 sparkle text-xl" style={{animationDelay: '0.5s'}}>✨</div>
+        <div className="flex justify-center mb-12 mt-4 relative z-20">
+          <div className="relative px-12 py-6">
+            {/* Plaque Background */}
+            <div className="absolute inset-0 bg-gradient-to-b from-red-800 to-red-950 rounded-3xl border-[6px] border-double border-yellow-200 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+               {/* Inner decorative line */}
+              <div className="absolute inset-2 border border-yellow-500/30 rounded-2xl"></div>
             </div>
+
+            {/* Title Text */}
+            <h1 className="relative text-5xl md:text-7xl font-black text-center tracking-wider z-10">
+              {/* Stroke Layer */}
+              <span 
+                className="absolute inset-0 flex items-center justify-center select-none"
+                style={{
+                  WebkitTextStroke: '10px #B45309', // amber-700
+                  color: 'transparent',
+                }}
+                aria-hidden="true"
+              >
+                {DEFAULT_TITLE}
+              </span>
+              
+              {/* Gradient Fill Layer */}
+              <span 
+                className="relative bg-gradient-to-b from-white via-gray-100 to-gray-300 bg-clip-text text-transparent"
+                style={{
+                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))'
+                }}
+              >
+                {DEFAULT_TITLE}
+              </span>
+            </h1>
+
+            {/* Sparkles */}
+            <div className="absolute -top-4 -right-4 text-yellow-200 animate-bounce text-4xl z-20">✨</div>
+            <div className="absolute -bottom-2 -left-4 text-yellow-200 animate-pulse text-3xl z-20" style={{animationDelay: '0.7s'}}>✨</div>
           </div>
         </div>
 
@@ -385,6 +462,9 @@ export default function App() {
         >
           <div className="flex flex-col gap-6">
             
+            {/* How To Use Section */}
+            <HowToUse />
+
             {/* Input Area */}
             <div className="w-full bg-white/90 backdrop-blur-sm p-4 rounded-lg shadow-lg border-2 border-red-900/30">
               <label className="block text-red-900 font-bold mb-2">エントリー単語 (1行1単語)</label>
@@ -392,7 +472,7 @@ export default function App() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 className="w-full h-32 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none resize-none font-medium"
-                placeholder="ここに流行語を入力してください..."
+                placeholder="ここに単語を入力してください..."
               />
             </div>
 
@@ -408,8 +488,67 @@ export default function App() {
                   ref={rankingBoardRef}
                   className="flex-col flex h-full bg-yellow-50" 
                 >
-                  <div className="bg-yellow-600 p-2 text-center text-white font-bold tracking-widest uppercase text-lg shadow-md">
-                    RANKING BOARD
+                  <div className="bg-gray-900 p-4 text-center relative shadow-md group border-b-4 border-yellow-600 overflow-hidden">
+                    {/* LED Background Track */}
+                    <div className="absolute inset-0 border-[12px] border-yellow-900/80 pointer-events-none z-0"></div>
+
+                    {/* LED Border */}
+                    <div className="absolute inset-0 pointer-events-none z-10">
+                      <div className="absolute top-1 left-0 right-0 h-2"><LEDStrip count={50} direction="horizontal" className="px-2" dotSize="w-1 h-1" /></div>
+                      <div className="absolute bottom-1 left-0 right-0 h-2"><LEDStrip count={50} direction="horizontal" className="px-2" dotSize="w-1 h-1" /></div>
+                      <div className="absolute top-0 bottom-0 left-1 w-2"><LEDStrip count={8} direction="vertical" className="py-2" dotSize="w-1 h-1" /></div>
+                      <div className="absolute top-0 bottom-0 right-1 w-2"><LEDStrip count={8} direction="vertical" className="py-2" dotSize="w-1 h-1" /></div>
+                    </div>
+
+                    {isEditingBoardTitle ? (
+                      <input
+                        ref={boardTitleInputRef}
+                        type="text"
+                        value={boardTitle}
+                        onChange={(e) => setBoardTitle(e.target.value)}
+                        onBlur={() => setIsEditingBoardTitle(false)}
+                        onKeyDown={(e) => e.key === 'Enter' && setIsEditingBoardTitle(false)}
+                        className="w-full bg-transparent text-center font-black tracking-widest text-4xl outline-none border-b-2 border-white/50 relative z-20 bg-gradient-to-b from-amber-500 to-red-600 bg-clip-text text-transparent"
+                        style={{
+                            WebkitTextStroke: '2px white',
+                            paintOrder: 'stroke fill',
+                            filter: 'drop-shadow(3px 3px 0px #14532d)',
+                        }}
+                      />
+                    ) : (
+                      <div 
+                        onClick={() => setIsEditingBoardTitle(true)}
+                        className="cursor-pointer hover:scale-105 transition-transform rounded px-2 flex items-center justify-center gap-2 py-2 relative z-20"
+                      >
+                        <div className="relative">
+                            {/* Outer Green Stroke Layer */}
+                            <span 
+                                className="absolute inset-0 flex items-center justify-center select-none font-black text-4xl md:text-5xl tracking-widest"
+                                style={{
+                                    WebkitTextStroke: '8px #14532d',
+                                    color: 'transparent',
+                                    zIndex: -1,
+                                }}
+                                aria-hidden="true"
+                            >
+                                {boardTitle}
+                            </span>
+
+                            {/* Main Text Layer */}
+                            <span 
+                                className="relative font-black text-4xl md:text-5xl tracking-widest bg-gradient-to-b from-amber-500 to-red-600 bg-clip-text text-transparent block"
+                                style={{
+                                    WebkitTextStroke: '2px white',
+                                    paintOrder: 'stroke fill',
+                                    filter: 'drop-shadow(3px 3px 5px rgba(0,0,0,0.5))',
+                                }}
+                            >
+                                {boardTitle}
+                            </span>
+                        </div>
+                        <Pen size={20} className="text-white opacity-50" />
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex-1 p-4 relative">
@@ -420,24 +559,30 @@ export default function App() {
                     >
                       <div className="flex flex-col">
                         {/* 1. Render Filled Ranking Slots */}
-                        {rankingItems.map((item, index) => (
-                          <div key={item.id} className="flex items-stretch mb-2 border-b-2 border-yellow-600/20 pb-1">
-                            {/* Rank Number */}
-                            <div className="w-14 flex items-center justify-center font-black text-3xl text-yellow-700 bg-transparent shrink-0">
-                              {index + 1}
+                        {rankingItems.map((item, index) => {
+                          // Calculate background opacity for top 10 (Gold/Orange gradient)
+                          const opacity = index < 10 ? ((10 - index) / 10) * 0.6 : 0;
+                          const style = index < 10 ? { backgroundColor: `rgba(255, 215, 0, ${opacity})` } : {};
+
+                          return (
+                            <div key={item.id} style={style} className="flex items-stretch mb-2 border-b-2 border-yellow-600/20 pb-1 rounded">
+                              {/* Rank Number */}
+                              <div className="ranking-number w-24 flex items-center justify-center font-['Abril_Fatface'] text-6xl text-amber-700 bg-transparent shrink-0 pb-4">
+                                {index + 1}
+                              </div>
+                              {/* Draggable Item */}
+                              <div className="flex-1 min-w-0">
+                                <SortableItem id={item.id} text={item.text} />
+                              </div>
                             </div>
-                            {/* Draggable Item */}
-                            <div className="flex-1 min-w-0">
-                              <SortableItem id={item.id} text={item.text} />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
 
                         {/* 2. Render Empty Slots (Placeholders) */}
                         {emptySlots.map((rankNum) => (
                           <div key={`empty-${rankNum}`} className="flex items-center mb-2 h-[60px] border-b-2 border-dashed border-yellow-400/50">
                             {/* Rank Number */}
-                            <div className="w-14 flex items-center justify-center font-black text-3xl text-yellow-700/30 shrink-0">
+                            <div className="w-24 flex items-center justify-center font-['Abril_Fatface'] text-6xl text-amber-700/30 shrink-0 pb-4">
                               {rankNum}
                             </div>
                             {/* Empty Space Visual */}
@@ -478,11 +623,11 @@ export default function App() {
                       {stackItems.map((item) => (
                         <SortableItem key={item.id} id={item.id} text={item.text} />
                       ))}
-                       {stackItems.length === 0 && (
-                           <div className="h-20 flex items-center justify-center text-gray-400 italic font-bold">
-                               待機中の単語はありません
-                           </div>
-                       )}
+                      {stackItems.length === 0 && (
+                        <div className="h-20 flex items-center justify-center text-gray-400 italic font-bold">
+                          待機中の単語はありません
+                        </div>
+                      )}
                     </div>
                   </SortableContext>
                 </Droppable>
@@ -504,7 +649,7 @@ export default function App() {
 
         {/* Footer Buttons */}
         <div className="fixed bottom-0 left-0 w-full bg-black/80 backdrop-blur-md p-4 flex justify-center items-center gap-4 z-50 border-t border-red-900">
-           <button
+          <button
             onClick={handleExportPNG}
             className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-2 px-6 rounded-full shadow-lg transition-all active:scale-95"
           >

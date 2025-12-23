@@ -30,9 +30,9 @@ export const SortableItem: React.FC<SortableItemProps> = ({ id, text }) => {
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-white rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.2)] border border-gray-300 p-3 mb-2 cursor-grab active:cursor-grabbing hover:translate-y-[-2px] transition-transform select-none w-full box-border"
+      className="bg-white rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.2)] border border-gray-300 p-3 mb-2 cursor-grab active:cursor-grabbing hover:translate-y-[-2px] transition-transform select-none w-full box-border flex items-center"
     >
-      <span className="text-purple-700 font-bold text-lg block truncate">
+      <span className="sortable-item-text text-purple-700 font-bold text-2xl w-full truncate leading-normal">
         {text}
       </span>
     </div>
