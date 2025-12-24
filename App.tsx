@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
-  closestCenter,
+  rectIntersection,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -20,7 +20,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Pen, RefreshCw, Download, FileText, FileImage } from 'lucide-react';
+import { Pen, RefreshCw, Download, FileText, FileImage, Image as ImageIcon } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { SortableItem } from './components/SortableItem';
@@ -28,6 +28,7 @@ import FlameBackground from './components/FlameBackground';
 import CurtainBackground from './components/CurtainBackground';
 import HowToUse from './components/HowToUse';
 import { LEDStrip } from './components/LEDStrip';
+import { Snackbar } from './components/Snackbar';
 import githubMark from './img/github-mark-white.png';
 
 // Types
@@ -64,9 +65,18 @@ export default function App() {
   
   const [activeDragItem, setActiveDragItem] = useState<WordItem | null>(null);
   
+  // Snackbar State
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [isSnackbarVisible, setIsSnackbarVisible] = useState(false);
+
+  const showSnackbar = (message: string) => {
+    setSnackbarMessage(message);
+    setIsSnackbarVisible(true);
+  };
+
   // Refs for export
   const rankingBoardRef = useRef<HTMLDivElement>(null);
-  const boardTitleInputRef = useRef<HTMLInputElement>(null);
+  const boardTitleInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Focus board title input when editing starts
   useEffect(() => {
@@ -74,6 +84,20 @@ export default function App() {
       boardTitleInputRef.current.focus();
     }
   }, [isEditingBoardTitle]);
+
+  // Confirm before unload
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   // --- Logic: Sync Textarea with Blocks ---
   useEffect(() => {
@@ -308,16 +332,29 @@ export default function App() {
                 htmlEl.style.transform = 'translateY(-5px)'; // Shift up slightly
                 htmlEl.style.overflow = 'visible';
             });
+
+            // Fix for title alignment
+            const titleTexts = clonedDoc.querySelectorAll('.board-title-text');
+            titleTexts.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                htmlEl.style.transform = 'translateY(-15px)';
+            });
+
+            // Hide edit icon
+            const editIcons = clonedDoc.querySelectorAll('.edit-icon');
+            editIcons.forEach((el) => {
+                (el as HTMLElement).style.display = 'none';
+            });
         }
       }); 
       const link = document.createElement('a');
       link.download = 'ranking.png';
       link.href = canvas.toDataURL();
       link.click();
-      alert('ランキングをPNGで保存しました');
+      showSnackbar('ランキングをPNGで保存しました');
     } catch (e) {
       console.error(e);
-      alert('保存に失敗しました');
+      showSnackbar('保存に失敗しました');
     }
   };
 
@@ -352,6 +389,13 @@ export default function App() {
                 htmlEl.style.transform = 'translateY(-5px)'; // Shift up slightly
                 htmlEl.style.overflow = 'visible';
             });
+
+            // Fix for title alignment
+            const titleTexts = clonedDoc.querySelectorAll('.board-title-text');
+            titleTexts.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                htmlEl.style.transform = 'translateY(-15px)';
+            });
         }
       });
       const imgData = canvas.toDataURL('image/png');
@@ -362,18 +406,188 @@ export default function App() {
       
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save('ranking.pdf');
-      alert('ランキングをPDFで保存しました');
+      showSnackbar('ランキングをPDFで保存しました');
     } catch (e) {
         console.error(e);
-      alert('保存に失敗しました');
+      showSnackbar('保存に失敗しました');
     }
   };
 
   const handleExportText = () => {
     const text = `${boardTitle}\n` + rankingItems.map((item, index) => `${index + 1}. ${item.text}`).join('\n');
     navigator.clipboard.writeText(text).then(() => {
-      alert('ランキングをクリップボードに保存しました');
+      showSnackbar('ランキングをクリップボードに保存しました');
     });
+  };
+
+  const getRandomColor = () => {
+    const colors = [
+      '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', 
+      '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', 
+      '#f43f5e', '#881337', '#7c2d12', '#78350f', '#365314',
+      '#064e3b', '#164e63', '#1e3a8a', '#312e81', '#4c1d95'
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
+  const handleExportWordCloud = () => {
+    if (rankingItems.length === 0) {
+      showSnackbar('ランキングに単語がありません');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = 1920;
+    const height = 1080;
+    canvas.width = width;
+    canvas.height = height;
+
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    // Word list with size
+    const words = rankingItems.map((item, index) => {
+      const rank = index + 1;
+      let fontSize = 20;
+      
+      if (rank <= 5) {
+        // 1st: 250, 2nd: 230, 3rd: 210, 4th: 190, 5th: 170
+        fontSize = 250 - (rank - 1) * 20;
+      } else {
+        // Groups of 5
+        const group = Math.floor((rank - 1) / 5); // 1 for 6-10
+        // Base size for group 1 (6-10) should be smaller than rank 5 (170)
+        if (group === 1) fontSize = 120;
+        else if (group === 2) fontSize = 90;
+        else if (group === 3) fontSize = 70;
+        else if (group === 4) fontSize = 50;
+        else fontSize = Math.max(30, 50 - (group - 4) * 5);
+      }
+
+      return {
+        text: item.text,
+        fontSize,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        color: getRandomColor(),
+      };
+    });
+
+    // Placement
+    const placedWords: typeof words = [];
+    const center = { x: width / 2, y: height / 2 };
+    
+    // Helper to check collision
+    const checkCollision = (word: typeof words[0], rects: typeof words) => {
+      for (const rect of rects) {
+        // Simple bounding box collision with padding
+        const padding = 10;
+        if (
+          word.x < rect.x + rect.width + padding &&
+          word.x + word.width + padding > rect.x &&
+          word.y < rect.y + rect.height + padding &&
+          word.y + word.height + padding > rect.y
+        ) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // Spiral
+    for (const word of words) {
+      // Initial measurement
+      ctx.font = `bold ${word.fontSize}px "Zen Kaku Gothic New", sans-serif`;
+      let metrics = ctx.measureText(word.text);
+      word.width = metrics.width;
+      word.height = word.fontSize * 0.85;
+
+      // If word is wider than canvas, shrink it
+      while (word.width > width * 0.9 && word.fontSize > 10) {
+        word.fontSize *= 0.9;
+        ctx.font = `bold ${word.fontSize}px "Zen Kaku Gothic New", sans-serif`;
+        metrics = ctx.measureText(word.text);
+        word.width = metrics.width;
+        word.height = word.fontSize * 0.85;
+      }
+
+      let angle = Math.random() * Math.PI * 2;
+      let radius = 0;
+      const step = 0.2; // Angle step
+      const spiralFactor = 10; // Radius growth per angle
+
+      let placed = false;
+      // Limit iterations
+      for (let i = 0; i < 5000; i++) {
+        word.x = center.x + radius * Math.cos(angle) - word.width / 2;
+        word.y = center.y + radius * Math.sin(angle) - word.height / 2;
+
+        if (!checkCollision(word, placedWords)) {
+          // Check bounds
+          if (word.x >= 0 && word.y >= 0 && word.x + word.width <= width && word.y + word.height <= height) {
+              placedWords.push(word);
+              placed = true;
+              break;
+          }
+        }
+
+        angle += step;
+        radius = spiralFactor * angle;
+      }
+      
+      // If not placed, try shrinking and retrying
+      if (!placed && word.fontSize > 20) {
+         // Try one more time with half size
+         word.fontSize *= 0.5;
+         ctx.font = `bold ${word.fontSize}px "Zen Kaku Gothic New", sans-serif`;
+         metrics = ctx.measureText(word.text);
+         word.width = metrics.width;
+         word.height = word.fontSize * 0.85;
+         
+         angle = Math.random() * Math.PI * 2;
+         radius = 0;
+         
+         for (let i = 0; i < 5000; i++) {
+            word.x = center.x + radius * Math.cos(angle) - word.width / 2;
+            word.y = center.y + radius * Math.sin(angle) - word.height / 2;
+
+            if (!checkCollision(word, placedWords)) {
+              if (word.x >= 0 && word.y >= 0 && word.x + word.width <= width && word.y + word.height <= height) {
+                  placedWords.push(word);
+                  placed = true;
+                  break;
+              }
+            }
+            angle += step;
+            radius = spiralFactor * angle;
+         }
+      }
+
+      if (!placed) {
+          console.warn(`Could not place word: ${word.text}`);
+      }
+    }
+
+    // Draw
+    placedWords.forEach(word => {
+      ctx.font = `bold ${word.fontSize}px "Zen Kaku Gothic New", sans-serif`;
+      ctx.fillStyle = word.color;
+      ctx.textBaseline = 'top';
+      ctx.fillText(word.text, word.x, word.y);
+    });
+
+    // Download
+    const link = document.createElement('a');
+    link.download = 'wordcloud.png';
+    link.href = canvas.toDataURL();
+    link.click();
+    showSnackbar('単語集画像を保存しました');
   };
   
   const dropAnimation: DropAnimation = {
@@ -455,7 +669,7 @@ export default function App() {
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={rectIntersection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
@@ -482,7 +696,7 @@ export default function App() {
               {/* Ranking Board */}
               <Droppable 
                 id="ranking" 
-                className="flex-1 bg-yellow-50 rounded-lg shadow-xl border-4 border-yellow-600/50 overflow-hidden flex flex-col"
+                className="flex-1 bg-yellow-50 rounded-lg shadow-xl border-4 border-yellow-600/50 overflow-hidden flex flex-col min-h-[400px]"
               >
                 <div 
                   ref={rankingBoardRef}
@@ -501,18 +715,27 @@ export default function App() {
                     </div>
 
                     {isEditingBoardTitle ? (
-                      <input
+                      <textarea
                         ref={boardTitleInputRef}
-                        type="text"
                         value={boardTitle}
                         onChange={(e) => setBoardTitle(e.target.value)}
                         onBlur={() => setIsEditingBoardTitle(false)}
-                        onKeyDown={(e) => e.key === 'Enter' && setIsEditingBoardTitle(false)}
-                        className="w-full bg-transparent text-center font-black tracking-widest text-4xl outline-none border-b-2 border-white/50 relative z-20 bg-gradient-to-b from-amber-500 to-red-600 bg-clip-text text-transparent"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                            setIsEditingBoardTitle(false);
+                          }
+                        }}
+                        className="w-full bg-transparent text-center font-black tracking-widest text-4xl outline-none border-b-2 border-white/50 relative z-20 bg-gradient-to-b from-amber-500 to-red-600 bg-clip-text text-transparent resize-none overflow-hidden"
                         style={{
                             WebkitTextStroke: '2px white',
                             paintOrder: 'stroke fill',
                             filter: 'drop-shadow(3px 3px 0px #14532d)',
+                            caretColor: 'white',
+                            minHeight: '60px',
+                        }}
+                        onInput={(e) => {
+                          e.currentTarget.style.height = 'auto';
+                          e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
                         }}
                       />
                     ) : (
@@ -523,7 +746,7 @@ export default function App() {
                         <div className="relative">
                             {/* Outer Green Stroke Layer */}
                             <span 
-                                className="absolute inset-0 flex items-center justify-center select-none font-black text-4xl md:text-5xl tracking-widest"
+                                className="board-title-text absolute inset-0 flex items-center justify-center select-none font-black text-4xl md:text-5xl tracking-widest whitespace-pre-wrap"
                                 style={{
                                     WebkitTextStroke: '8px #14532d',
                                     color: 'transparent',
@@ -536,7 +759,7 @@ export default function App() {
 
                             {/* Main Text Layer */}
                             <span 
-                                className="relative font-black text-4xl md:text-5xl tracking-widest bg-gradient-to-b from-amber-500 to-red-600 bg-clip-text text-transparent block"
+                                className="board-title-text relative font-black text-4xl md:text-5xl tracking-widest bg-gradient-to-b from-amber-500 to-red-600 bg-clip-text text-transparent block whitespace-pre-wrap"
                                 style={{
                                     WebkitTextStroke: '2px white',
                                     paintOrder: 'stroke fill',
@@ -546,7 +769,7 @@ export default function App() {
                                 {boardTitle}
                             </span>
                         </div>
-                        <Pen size={20} className="text-white opacity-50" />
+                        <Pen size={20} className="text-white opacity-50 edit-icon" />
                       </div>
                     )}
                   </div>
@@ -669,8 +892,20 @@ export default function App() {
           >
             <Download size={18} /> テキスト保存
           </button>
+
+          <button
+            onClick={handleExportWordCloud}
+            className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-bold py-2 px-6 rounded-full shadow-lg transition-all active:scale-95"
+          >
+            <ImageIcon size={18} /> 単語集画像保存
+          </button>
         </div>
       </div>
+      <Snackbar 
+        message={snackbarMessage} 
+        isVisible={isSnackbarVisible} 
+        onClose={() => setIsSnackbarVisible(false)} 
+      />
     </div>
   );
 }
