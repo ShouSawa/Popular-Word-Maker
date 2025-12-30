@@ -55,7 +55,7 @@ const Droppable = ({ id, children, className, style }: { id: string, children: R
 };
 
 export default function App() {
-  const [boardTitle, setBoardTitle] = useState('RANKING BOARD');
+  const [boardTitle, setBoardTitle] = useState('RANKING BOARD'); // ランキングボードのタイトル
   const [isEditingBoardTitle, setIsEditingBoardTitle] = useState(false);
   const [inputText, setInputText] = useState('');
   
