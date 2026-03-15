@@ -19,7 +19,7 @@ import GitHubLink from './components/GitHubLink';
 import { useRankingManager } from './hooks/useRankingManager';
 import { useExportActions } from './hooks/useExportActions';
 
-const DEFAULT_TITLE = 'ランキングメーカー';
+const DEFAULT_TITLE = 'ランキングメーカーかああ';
 
 export default function App() {
   const {
